@@ -269,6 +269,103 @@ Including subprocess startup, model loading, image writing, and mask writing,
 plan for roughly 8-14 hours. Because every sample writes `input`, `recon`,
 `label`, and `mask`, reserve at least 100 GB in the result filesystem.
 
+## RMFM-TokenUNet-v1
+
+TokenUNet-v1 keeps the existing flow-matching objective and sparse recovery
+sampler, but changes how sparse observations enter the model:
+
+```text
+baseline:
+  x_t + building + source + sparse image -> U-Net
+
+TokenUNet-v1:
+  x_t + building + source -> U-Net dense branch
+  sparse points -> tokenizer -> point tokens -> U-Net cross-attention
+```
+
+The implementation is intentionally separate from the baseline:
+
+- `rmfm/obs_tokenizer.py`: sparse point tokenizer with Fourier coordinate features and a small Transformer encoder.
+- `rmfm/token_utils.py`: sparse mask sampling, point extraction, padding, and K-max subsampling.
+- `rmfm/modeling_token_unet_flow.py`: TokenUNet wrapper around `diffusers.UNet2DConditionModel`.
+- `scripts/train_token_unet_flow.py`: flow-matching training for TokenUNet.
+- `scripts/sample_token_flowdps.py`: TokenUNet sampling with `no_dc` and `dc` modes.
+- `scripts/benchmark_token_unet_phase1.py`: phase-1 validation matrix with a combined summary CSV.
+
+Dense inputs use only `x_t`, building mask, and source heatmap. The sparse
+measurements are encoded as point tokens with shape `[B, K+1, C]`, including a
+CLS token. The default token dimension is 256, with 2 tokenizer Transformer
+layers and 4 heads. `K_MAX=256` limits token attention cost; if a mask contains
+more observed points, the token branch subsamples points, while `dc` mode still
+uses the full sparse mask for data consistency.
+
+Train TokenUNet-v1:
+
+```bash
+cd /home/Users_Work_Space/zsfang/rmfm
+bash scripts/run_token_unet_phase1_train.sh
+```
+
+The training launcher writes `run.log`, `run.pid`, `run_command.txt`, and
+`launcher_config.txt` into the checkpoint directory. Defaults:
+
+- checkpoint directory: `/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_token_unet_flow_dpm`
+- gain modes: `DPM`
+- random training sparse rates: `0.0,0.0001,0.0003,0.001,0.003,0.005,0.01`
+- token dim: `256`
+- K max: `256`
+- dense condition channels: building and source only
+
+Run the first-stage evaluation after training:
+
+```bash
+cd /home/Users_Work_Space/zsfang/rmfm
+bash scripts/run_token_unet_phase1_eval.sh
+```
+
+The default evaluation is small-scale and trend-focused:
+
+- checkpoint: `/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_token_unet_flow_dpm/best.pt`
+- gain modes: `DPM`
+- split: `test`
+- samples: 50
+- rates: `0.0001, 0.0003, 0.001, 0.003, 0.01`
+- sampler modes: `no_dc` and `dc`
+- condition modes: `sampling_only`, `sampling_building`, `sampling_source`, `sampling_building_source`
+- reference: `building_source_no_sampling`
+
+The output layout is:
+
+```text
+output_dir/
+  token_unet_no_dc/
+    no_building_source/
+      DPM/
+        sr_0p0001/
+          input/
+          recon/
+          label/
+          masks/
+          metrics.csv
+          summary.json
+  token_unet_dc/
+    ...
+  token_unet_phase1_summary.csv
+  run_config.json
+  run.log
+  run.pid
+  run_command.txt
+  launcher_config.txt
+```
+
+First-stage success criteria are trend-based:
+
+- `TokenUNet-noDC` should improve over baseline `sampling_only`.
+- `TokenUNet+DC` should improve over `TokenUNet-noDC`.
+- `sampling_only` should collapse less severely at very low rates.
+- `sampling_building` should clearly improve over `sampling_only`.
+- `sampling_building_source` should not lose SSIM because of sparse guidance.
+
 Multiple checkpoints:
 
 ```bash
