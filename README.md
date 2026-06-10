@@ -8,19 +8,66 @@ modify the existing SD3 sampler or `main.py`.
 
 ## Paths
 
-- Code: `/home/Users_Work_Space/zsfang/rmfm`
-- Default dataset: `/home/DataDisk/zsfang/dataset/RadioMapSeer`
-- Default checkpoints/results: `/home/DataDisk/zsfang/rmfm`
+- Code: `/path/to/your/rmfm`
+- Default dataset: `/path/to/your/RadioMapSeer`
+- Default checkpoints/results: `/path/to/your/rmfm_runs`
+
+## Environment
+
+Use Python 3.10 or newer. The current code has been checked with:
+
+```text
+Python 3.10.20
+torch 2.4.1+cu121
+diffusers 0.30.1
+numpy 2.2.6
+pillow 12.2.0
+scikit-image 0.25.2
+tqdm 4.67.3
+```
+
+Create a clean environment:
+
+```bash
+conda create -n rmfm python=3.10 -y
+conda activate rmfm
+```
+
+Install PyTorch for your CUDA driver from the official PyTorch index. For
+example, for CUDA 12.1 wheels:
+
+```bash
+pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu121
+```
+
+Then install the project dependencies. The PyTorch range in
+`requirements.txt` is compatible with the version installed above:
+
+```bash
+cd /path/to/your/rmfm
+pip install -r requirements.txt
+```
+
+Check the environment before running long experiments:
+
+```bash
+python -c "import torch, diffusers, numpy, PIL, skimage; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
+python -m py_compile rmfm/metrics.py scripts/sample_token_flowdps.py scripts/benchmark_token_unet_phase1.py
+```
+
+If CUDA is not available, training and sampling will fall back to CPU only when
+the selected script supports it, but full experiments are intended for a CUDA
+GPU.
 
 ## Train
 
 Quick smoke test:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 python scripts/train_unet_flow.py \
-  --dataset_root /home/DataDisk/zsfang/dataset/RadioMapSeer \
-  --output_dir /home/DataDisk/zsfang/rmfm/checkpoints/smoke_unet_flow \
+  --dataset_root /path/to/your/RadioMapSeer \
+  --output_dir /path/to/your/rmfm_runs/checkpoints/smoke_unet_flow \
   --gain_modes DPM \
   --base_channels 16 \
   --channel_mults 1,2,2 \
@@ -36,10 +83,10 @@ python scripts/train_unet_flow.py \
 Longer first run:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 python scripts/train_unet_flow.py \
-  --dataset_root /home/DataDisk/zsfang/dataset/RadioMapSeer \
-  --output_dir /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm \
+  --dataset_root /path/to/your/RadioMapSeer \
+  --output_dir /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm \
   --gain_modes DPM \
   --base_channels 64 \
   --channel_mults 1,2,4,4 \
@@ -66,8 +113,8 @@ reasonably used:
 
 ```bash
 python scripts/train_unet_flow.py \
-  --dataset_root /home/DataDisk/zsfang/dataset/RadioMapSeer \
-  --output_dir /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm \
+  --dataset_root /path/to/your/RadioMapSeer \
+  --output_dir /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm \
   --gain_modes DPM \
   --batch_size 32 \
   --num_workers 8 \
@@ -105,11 +152,11 @@ then applies data consistency only on the known sparse samples.
 Single sampling rate:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 python scripts/sample_flowdps.py \
-  --dataset_root /home/DataDisk/zsfang/dataset/RadioMapSeer \
-  --checkpoint /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm/latest.pt \
-  --output_dir /home/DataDisk/zsfang/rmfm/results/unet_flowdps \
+  --dataset_root /path/to/your/RadioMapSeer \
+  --checkpoint /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm/latest.pt \
+  --output_dir /path/to/your/rmfm_runs/results/unet_flowdps \
   --gain_mode DPM \
   --split test \
   --sampling_rate 0.01 \
@@ -127,11 +174,11 @@ samples from that city are used.
 Multiple sampling rates:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 python scripts/benchmark_sampling_rates.py \
-  --dataset_root /home/DataDisk/zsfang/dataset/RadioMapSeer \
-  --checkpoint /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm/latest.pt \
-  --output_dir /home/DataDisk/zsfang/rmfm/results/benchmark_dpm \
+  --dataset_root /path/to/your/RadioMapSeer \
+  --checkpoint /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm/latest.pt \
+  --output_dir /path/to/your/rmfm_runs/results/benchmark_dpm \
   --gain_modes DPM \
   --split test \
   --sampling_rates 0.005 0.01 0.02 0.03 0.05 \
@@ -142,11 +189,11 @@ Condition ablations can be run at inference time with the same checkpoint and
 the same sparse masks:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 python scripts/benchmark_sampling_rates.py \
-  --dataset_root /home/DataDisk/zsfang/dataset/RadioMapSeer \
-  --checkpoint /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt \
-  --output_dir /home/DataDisk/zsfang/rmfm/results/condition_ablation_dpm \
+  --dataset_root /path/to/your/RadioMapSeer \
+  --checkpoint /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt \
+  --output_dir /path/to/your/rmfm_runs/results/condition_ablation_dpm \
   --gain_modes DPM \
   --split test \
   --sampling_rates 0.0001 0.0002 0.0003 0.0004 0.0005 0.0006 0.0007 0.0008 0.0009 0.0010 \
@@ -171,7 +218,7 @@ python scripts/benchmark_sampling_rates.py \
 For the information-ablation matrix discussed in the project notes, use:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 bash scripts/run_information_ablation_dpm.sh
 ```
 
@@ -195,8 +242,8 @@ ranges:
 
 ```bash
 python scripts/benchmark_information_ablations.py \
-  --checkpoint /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt \
-  --output_dir /home/DataDisk/zsfang/rmfm/results/example_range \
+  --checkpoint /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt \
+  --output_dir /path/to/your/rmfm_runs/results/example_range \
   --gain_modes DPM \
   --split test \
   --sampling_rate_start 0.01 \
@@ -214,13 +261,13 @@ To estimate where `sampling_only` inference collapses at low sampling rates,
 run:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 bash scripts/run_sampling_only_collapse_sweep.sh
 ```
 
 The launcher is configured near the top of the shell script. By default it uses:
 
-- checkpoint: `/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt`
+- checkpoint: `/path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt`
 - gain modes: `DPM IRT2 IRT4`
 - split: `test`
 - experiment: `sampling_only`
@@ -260,8 +307,8 @@ output_dir/
 The process runs in the background by default. Monitor it with:
 
 ```bash
-tail -f /home/DataDisk/zsfang/rmfm/results/sample_only_collapse_sweep_0p01/run.log
-cat /home/DataDisk/zsfang/rmfm/results/sample_only_collapse_sweep_0p01/run.pid
+tail -f /path/to/your/rmfm_runs/results/sample_only_collapse_sweep_0p01/run.log
+cat /path/to/your/rmfm_runs/results/sample_only_collapse_sweep_0p01/run.pid
 ```
 
 At roughly 0.15 seconds per recovery, pure sampling takes about 6.5 hours.
@@ -302,14 +349,14 @@ uses the full sparse mask for data consistency.
 Train TokenUNet-v1:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 bash scripts/run_token_unet_phase1_train.sh
 ```
 
 The training launcher writes `run.log`, `run.pid`, `run_command.txt`, and
 `launcher_config.txt` into the checkpoint directory. Defaults:
 
-- checkpoint directory: `/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_token_unet_flow_dpm`
+- checkpoint directory: `/path/to/your/rmfm_runs/checkpoints/radiomapseer_token_unet_flow_dpm`
 - gain modes: `DPM`
 - random training sparse rates: `0.0,0.0001,0.0003,0.001,0.003,0.005,0.01`
 - token dim: `256`
@@ -319,13 +366,13 @@ The training launcher writes `run.log`, `run.pid`, `run_command.txt`, and
 Run the first-stage evaluation after training:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 bash scripts/run_token_unet_phase1_eval.sh
 ```
 
 The default evaluation is small-scale and trend-focused:
 
-- checkpoint: `/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_token_unet_flow_dpm/best.pt`
+- checkpoint: `/path/to/your/rmfm_runs/checkpoints/radiomapseer_token_unet_flow_dpm/best.pt`
 - gain modes: `DPM`
 - split: `test`
 - samples: one sample per test city (`NUM_SAMPLES=-1`, `SAMPLES_PER_CITY=1`)
@@ -371,7 +418,7 @@ To quantify whether sparse sampling adds information beyond condition-only
 priors, run the v1 supplementary evaluation:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 bash scripts/run_token_unet_v1_supplement_eval.sh
 ```
 
@@ -379,7 +426,7 @@ This launcher runs in the background by default and writes `run.log`,
 `run.pid`, `run_command.txt`, and `launcher_config.txt` into:
 
 ```text
-/home/DataDisk/zsfang/rmfm/results/token_unet_v1_supplement_per_city1_fp32
+/path/to/your/rmfm_runs/results/token_unet_v1_supplement_per_city1_fp32
 ```
 
 It adds matched no-sampling baselines:
@@ -413,11 +460,11 @@ point sets.
 Multiple checkpoints:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 python scripts/benchmark_checkpoints.py \
-  --checkpoint_dir /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm \
-  --output_dir /home/DataDisk/zsfang/rmfm/results/checkpoint_sweep_dpm \
-  --dataset_root /home/DataDisk/zsfang/dataset/RadioMapSeer \
+  --checkpoint_dir /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm \
+  --output_dir /path/to/your/rmfm_runs/results/checkpoint_sweep_dpm \
+  --dataset_root /path/to/your/RadioMapSeer \
   --gain_modes DPM \
   --split test \
   --sampling_rates 0.01 0.03 0.05 \
@@ -432,12 +479,12 @@ To test selected checkpoints only:
 
 ```bash
 python scripts/benchmark_checkpoints.py \
-  --checkpoint_dir /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm \
+  --checkpoint_dir /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm \
   --checkpoints \
-    /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0010000.pt \
-    /home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt \
-  --output_dir /home/DataDisk/zsfang/rmfm/results/checkpoint_sweep_selected \
-  --dataset_root /home/DataDisk/zsfang/dataset/RadioMapSeer \
+    /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0010000.pt \
+    /path/to/your/rmfm_runs/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt \
+  --output_dir /path/to/your/rmfm_runs/results/checkpoint_sweep_selected \
+  --dataset_root /path/to/your/RadioMapSeer \
   --gain_modes DPM \
   --split test \
   --sampling_rates 0.01 0.03 0.05 \
@@ -473,7 +520,7 @@ model weight files such as `*.pt`, `*.pth`, and `*.ckpt`.
 Recommended initial commit:
 
 ```bash
-cd /home/Users_Work_Space/zsfang/rmfm
+cd /path/to/your/rmfm
 git add .
 git commit -m "Initial rmfm experiment code"
 ```
