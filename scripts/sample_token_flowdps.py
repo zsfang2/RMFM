@@ -24,7 +24,15 @@ from rmfm.data import (  # noqa: E402
 from rmfm.flowdps import parse_dtype  # noqa: E402
 from rmfm.io import save_mask, save_tensor_image, tensor_to_float01  # noqa: E402
 from rmfm.masks import build_measurement, make_exact_ratio_mask, mask_to_tensor, stable_int_seed  # noqa: E402
-from rmfm.metrics import compute_metrics, summarize_metrics, write_metrics_csv, write_summary_json  # noqa: E402
+from rmfm.metrics import (  # noqa: E402
+    MASKED_METRIC_KEYS,
+    compute_masked_metrics,
+    compute_metrics,
+    summarize_metric_keys,
+    summarize_metrics,
+    write_metrics_csv,
+    write_summary_json,
+)
 from rmfm.modeling_token_unet_flow import load_model_from_checkpoint  # noqa: E402
 from rmfm.token_utils import sparse_tokens_from_mask  # noqa: E402
 
@@ -328,7 +336,13 @@ def main() -> None:
         save_tensor_image(image, label_dir / f"{frame}.png")
         save_mask(mask_np, mask_dir / f"{frame}.npy")
 
-        metrics = compute_metrics(tensor_to_float01(recon), tensor_to_float01(image))
+        recon_np = tensor_to_float01(recon)
+        image_np = tensor_to_float01(image)
+        measurement_np = tensor_to_float01(measurement)
+        metrics = compute_metrics(recon_np, image_np)
+        metrics.update(compute_masked_metrics(recon_np, image_np, mask_np, prefix="observed"))
+        metrics.update(compute_masked_metrics(recon_np, image_np, 1.0 - mask_np, prefix="unobserved"))
+        metrics.update(compute_masked_metrics(recon_np, measurement_np, mask_np, prefix="measurement"))
         rows.append(
             {
                 "frame": frame,
@@ -348,6 +362,12 @@ def main() -> None:
         )
 
     summary = summarize_metrics(rows)
+    regional_keys = [
+        f"{prefix}_{key}"
+        for prefix in ("observed", "unobserved", "measurement")
+        for key in MASKED_METRIC_KEYS
+    ]
+    summary.update(summarize_metric_keys(rows, regional_keys))
     summary.update(
         {
             "gain_mode": args.gain_mode,

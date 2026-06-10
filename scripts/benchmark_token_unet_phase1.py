@@ -9,9 +9,36 @@ import sys
 from pathlib import Path
 
 
-METRIC_KEYS = ["psnr", "ssim", "mse", "nmse", "rmse", "mae"]
+BASE_METRIC_KEYS = ["psnr", "ssim", "mse", "nmse", "rmse", "mae"]
+REGIONAL_METRIC_KEYS = [
+    f"{prefix}_{key}"
+    for prefix in ("observed", "unobserved", "measurement")
+    for key in ("psnr", "mse", "nmse", "rmse", "mae")
+]
+METRIC_KEYS = BASE_METRIC_KEYS + REGIONAL_METRIC_KEYS
 
 EXPERIMENT_PRESETS = {
+    "no_condition_no_sampling": {
+        "condition_mode": "zero_all",
+        "use_sampling_rates": False,
+        "uses_sparse_samples": False,
+        "uses_building": False,
+        "uses_source": False,
+    },
+    "building_no_sampling": {
+        "condition_mode": "building_only",
+        "use_sampling_rates": False,
+        "uses_sparse_samples": False,
+        "uses_building": True,
+        "uses_source": False,
+    },
+    "source_no_sampling": {
+        "condition_mode": "source_only",
+        "use_sampling_rates": False,
+        "uses_sparse_samples": False,
+        "uses_building": False,
+        "uses_source": True,
+    },
     "sampling_only": {
         "condition_mode": "no_building_source",
         "use_sampling_rates": True,

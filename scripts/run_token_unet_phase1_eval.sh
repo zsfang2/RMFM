@@ -9,7 +9,7 @@ PYTHON_EXE="/home/Users_Work_Space/zsfang/envs/controlflow/bin/python"
 
 DATASET_ROOT="/home/DataDisk/zsfang/dataset/RadioMapSeer"
 CHECKPOINT="/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_token_unet_flow_dpm/best.pt"
-OUTPUT_DIR="/home/DataDisk/zsfang/rmfm/results/token_unet_phase1"
+OUTPUT_DIR="/home/DataDisk/zsfang/rmfm/results/token_unet_phase1_per_city1_fp32"
 
 # Physical GPU id shown by nvidia-smi. Change this single number as needed.
 GPU_ID=1
@@ -30,9 +30,9 @@ EXPERIMENTS=(
 )
 NO_SAMPLING_RATE=0.0
 
-NUM_SAMPLES=50
+NUM_SAMPLES=-1
 START_INDEX=0
-SAMPLES_PER_CITY=0
+SAMPLES_PER_CITY=1
 SEED=42
 IMAGE_SIZE=256
 DATA_CHANNELS=3
@@ -44,7 +44,7 @@ NUM_STEPS=20
 STEP_SIZE=50.0
 DC_ITERS=3
 K_MAX=256
-DTYPE="fp16"
+DTYPE="fp32"
 
 # Set to 1 to reuse completed summary.json files when restarting.
 SKIP_EXISTING=1

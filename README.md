@@ -328,11 +328,12 @@ The default evaluation is small-scale and trend-focused:
 - checkpoint: `/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_token_unet_flow_dpm/best.pt`
 - gain modes: `DPM`
 - split: `test`
-- samples: 50
+- samples: one sample per test city (`NUM_SAMPLES=-1`, `SAMPLES_PER_CITY=1`)
 - rates: `0.0001, 0.0003, 0.001, 0.003, 0.01`
 - sampler modes: `no_dc` and `dc`
 - condition modes: `sampling_only`, `sampling_building`, `sampling_source`, `sampling_building_source`
 - reference: `building_source_no_sampling`
+- dtype: `fp32`
 
 The output layout is:
 
@@ -365,6 +366,49 @@ First-stage success criteria are trend-based:
 - `sampling_only` should collapse less severely at very low rates.
 - `sampling_building` should clearly improve over `sampling_only`.
 - `sampling_building_source` should not lose SSIM because of sparse guidance.
+
+To quantify whether sparse sampling adds information beyond condition-only
+priors, run the v1 supplementary evaluation:
+
+```bash
+cd /home/Users_Work_Space/zsfang/rmfm
+bash scripts/run_token_unet_v1_supplement_eval.sh
+```
+
+This launcher runs in the background by default and writes `run.log`,
+`run.pid`, `run_command.txt`, and `launcher_config.txt` into:
+
+```text
+/home/DataDisk/zsfang/rmfm/results/token_unet_v1_supplement_per_city1_fp32
+```
+
+It adds matched no-sampling baselines:
+
+- `no_condition_no_sampling`
+- `building_no_sampling`
+- `source_no_sampling`
+- `building_source_no_sampling`
+
+and compares them with:
+
+- `sampling_only`
+- `sampling_building`
+- `sampling_source`
+- `sampling_building_source`
+
+The default supplement uses `DPM`, `test`, `fp32`, one sample per test city,
+and rates `0.0001, 0.001, 0.01`. It also runs a bounded DC sweep for
+`sampling_only` and `sampling_building` with step sizes `1, 3, 5, 10, 20, 50`.
+
+`sample_token_flowdps.py` records global metrics and additional masked metrics:
+
+- `observed_*`: error on sampled pixels against the clean label.
+- `unobserved_*`: error on unsampled pixels against the clean label.
+- `measurement_*`: consistency with the noisy sparse measurement at sampled pixels.
+
+The masked metrics include PSNR, MSE, NMSE, RMSE, and MAE. SSIM is reported only
+for the full image because masked SSIM is not well-defined for arbitrary sparse
+point sets.
 
 Multiple checkpoints:
 
