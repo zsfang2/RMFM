@@ -31,6 +31,7 @@ from rmfm.modeling_unet_flow import (  # noqa: E402
     load_checkpoint,
     save_checkpoint,
 )
+from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_UNET_FLOW_CHECKPOINT_DIR  # noqa: E402
 
 
 def parse_channel_mults(text: str) -> tuple[int, ...]:
@@ -107,11 +108,11 @@ def validate_resume_config(current_config: dict[str, Any], checkpoint_config: di
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a RadioMapSeer conditional U-Net flow prior.")
-    parser.add_argument("--dataset_root", type=Path, default=Path("/home/DataDisk/zsfang/dataset/RadioMapSeer"))
+    parser.add_argument("--dataset_root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument(
         "--output_dir",
         type=Path,
-        default=Path("/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow"),
+        default=DEFAULT_UNET_FLOW_CHECKPOINT_DIR,
     )
     parser.add_argument("--gain_modes", nargs="+", default=["DPM"])
     parser.add_argument("--image_size", type=int, default=256)

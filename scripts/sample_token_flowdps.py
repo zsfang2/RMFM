@@ -34,6 +34,7 @@ from rmfm.metrics import (  # noqa: E402
     write_summary_json,
 )
 from rmfm.modeling_token_unet_flow import load_model_from_checkpoint  # noqa: E402
+from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_RESULT_ROOT  # noqa: E402
 from rmfm.token_utils import sparse_tokens_from_mask  # noqa: E402
 
 
@@ -82,9 +83,9 @@ def dense_building_source(condition: torch.Tensor) -> torch.Tensor:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run RMFM-TokenUNet-v1 sparse radio-map sampling.")
-    parser.add_argument("--dataset_root", type=Path, default=Path("/home/DataDisk/zsfang/dataset/RadioMapSeer"))
+    parser.add_argument("--dataset_root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--output_dir", type=Path, default=Path("/home/DataDisk/zsfang/rmfm/results/token_unet_flowdps"))
+    parser.add_argument("--output_dir", type=Path, default=DEFAULT_RESULT_ROOT / "token_unet_flowdps")
     parser.add_argument("--gain_mode", type=str, default="DPM")
     parser.add_argument("--split", choices=["all", "train", "val", "test"], default="test")
     parser.add_argument("--split_file", type=Path, default=None)

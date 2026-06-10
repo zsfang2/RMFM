@@ -8,6 +8,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_RESULT_ROOT  # noqa: E402
+
 
 METRIC_KEYS = ["psnr", "ssim", "mse", "nmse", "rmse", "mae"]
 CONDITION_MODES = (
@@ -33,9 +39,9 @@ def condition_output_dir(output_dir: Path, condition_mode: str, condition_modes:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark sparse recovery at multiple sampling rates.")
-    parser.add_argument("--dataset_root", type=Path, default=Path("/home/DataDisk/zsfang/dataset/RadioMapSeer"))
+    parser.add_argument("--dataset_root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--output_dir", type=Path, default=Path("/home/DataDisk/zsfang/rmfm/results/benchmark"))
+    parser.add_argument("--output_dir", type=Path, default=DEFAULT_RESULT_ROOT / "benchmark")
     parser.add_argument("--gain_modes", nargs="+", default=["DPM"])
     parser.add_argument("--split", choices=["all", "train", "val", "test"], default="test")
     parser.add_argument("--split_file", type=Path, default=None)

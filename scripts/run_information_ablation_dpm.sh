@@ -4,12 +4,16 @@ set -euo pipefail
 # Edit this file before running:
 #   bash scripts/run_information_ablation_dpm.sh
 
-PROJECT_ROOT="/home/Users_Work_Space/zsfang/rmfm"
-PYTHON_EXE="/home/Users_Work_Space/zsfang/envs/controlflow/bin/python"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+PYTHON_EXE="${PYTHON_EXE:-python}"
 
-DATASET_ROOT="/home/DataDisk/zsfang/dataset/RadioMapSeer"
-CHECKPOINT="/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt"
-OUTPUT_DIR="/home/DataDisk/zsfang/rmfm/results/information_ablation_dpm"
+RMFM_DATA_ROOT="${RMFM_DATA_ROOT:-$PROJECT_ROOT/data}"
+DATASET_ROOT="${DATASET_ROOT:-$RMFM_DATA_ROOT/RadiomapSeer}"
+CHECKPOINT_ROOT="${CHECKPOINT_ROOT:-$PROJECT_ROOT/outputs/rmfm/checkpoints}"
+RESULT_ROOT="${RESULT_ROOT:-$PROJECT_ROOT/outputs/rmfm/results}"
+CHECKPOINT="${CHECKPOINT:-$CHECKPOINT_ROOT/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt}"
+OUTPUT_DIR="${OUTPUT_DIR:-$RESULT_ROOT/information_ablation_dpm}"
 
 # Physical GPU id shown by nvidia-smi. Change this single number as needed.
 GPU_ID=1

@@ -31,6 +31,7 @@ from rmfm.modeling_token_unet_flow import (  # noqa: E402
     load_checkpoint,
     save_checkpoint,
 )
+from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_TOKEN_UNET_FLOW_CHECKPOINT_DIR  # noqa: E402
 from rmfm.token_utils import sample_sparse_mask, sparse_tokens_from_mask  # noqa: E402
 
 
@@ -116,11 +117,11 @@ def validate_resume_config(current_config: dict[str, Any], checkpoint_config: di
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train RMFM-TokenUNet-v1 with sparse observation tokens.")
-    parser.add_argument("--dataset_root", type=Path, default=Path("/home/DataDisk/zsfang/dataset/RadioMapSeer"))
+    parser.add_argument("--dataset_root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument(
         "--output_dir",
         type=Path,
-        default=Path("/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_token_unet_flow_dpm"),
+        default=DEFAULT_TOKEN_UNET_FLOW_CHECKPOINT_DIR,
     )
     parser.add_argument("--gain_modes", nargs="+", default=["DPM"])
     parser.add_argument("--image_size", type=int, default=256)

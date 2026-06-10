@@ -4,17 +4,21 @@ set -euo pipefail
 # Edit this file before running:
 #   bash scripts/run_token_unet_phase1_train.sh
 
-PROJECT_ROOT="/home/Users_Work_Space/zsfang/rmfm"
-PYTHON_EXE="/home/Users_Work_Space/zsfang/envs/controlflow/bin/python"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+PYTHON_EXE="${PYTHON_EXE:-python}"
 
-DATASET_ROOT="/home/DataDisk/zsfang/dataset/RadioMapSeer"
-OUTPUT_DIR="/home/DataDisk/zsfang/rmfm/checkpoints/radiomapseer_token_unet_flow_dpm"
+RMFM_DATA_ROOT="${RMFM_DATA_ROOT:-$PROJECT_ROOT/data}"
+DATASET_ROOT="${DATASET_ROOT:-$RMFM_DATA_ROOT/RadiomapSeer}"
+CHECKPOINT_ROOT="${CHECKPOINT_ROOT:-$PROJECT_ROOT/outputs/rmfm/checkpoints}"
+OUTPUT_DIR="${OUTPUT_DIR:-$CHECKPOINT_ROOT/radiomapseer_token_unet_flow_dpm}"
 
 # Physical GPU id shown by nvidia-smi. Change this single number as needed.
-GPU_ID=1
+GPU_ID="${GPU_ID:-1}"
 DEVICE="cuda:0"
 
-GAIN_MODES=(DPM)
+GAIN_MODES_TEXT="${GAIN_MODES_TEXT:-DPM}"
+read -r -a GAIN_MODES <<< "$GAIN_MODES_TEXT"
 IMAGE_SIZE=256
 DATA_CHANNELS=3
 HEATMAP_SIGMA=20.0
