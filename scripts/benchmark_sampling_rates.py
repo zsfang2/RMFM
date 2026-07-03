@@ -16,7 +16,13 @@ from rmfm.device import add_gpu_argument, device_string  # noqa: E402
 from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_UNET_RESULT_ROOT  # noqa: E402
 
 
-METRIC_KEYS = ["psnr", "ssim", "mse", "nmse", "rmse", "mae"]
+BASE_METRIC_KEYS = ["psnr", "ssim", "mse", "nmse", "rmse", "mae"]
+REGIONAL_METRIC_KEYS = [
+    f"{prefix}_{key}"
+    for prefix in ("observed", "unobserved", "measurement")
+    for key in ("psnr", "mse", "nmse", "rmse", "mae")
+]
+METRIC_KEYS = BASE_METRIC_KEYS + REGIONAL_METRIC_KEYS
 CONDITION_MODES = (
     "full",
     "no_building",
@@ -30,6 +36,18 @@ CONDITION_MODES = (
 
 def ratio_tag(value: float) -> str:
     return f"sr_{value:.4f}".replace(".", "p")
+
+
+def count_tag(value: int) -> str:
+    return f"k_{value:04d}"
+
+
+def sampling_tag(sampling_rate: float | None, sampling_count: int | None) -> str:
+    if sampling_count is not None:
+        return count_tag(sampling_count)
+    if sampling_rate is None:
+        raise ValueError("sampling_rate is required when sampling_count is not set")
+    return ratio_tag(sampling_rate)
 
 
 def condition_output_dir(output_dir: Path, condition_mode: str, condition_modes: list[str]) -> Path:
@@ -47,6 +65,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split", choices=["all", "train", "val", "test"], default="test")
     parser.add_argument("--split_file", type=Path, default=None)
     parser.add_argument("--sampling_rates", type=float, nargs="+", default=[0.005, 0.01, 0.02, 0.03, 0.05])
+    parser.add_argument(
+        "--sampling_counts",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Exact K sparse samples to evaluate. If set, sampling_rates are ignored.",
+    )
     parser.add_argument("--num_samples", type=int, default=50)
     parser.add_argument("--start_index", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
@@ -75,8 +100,13 @@ def main() -> None:
     summary_rows = []
     for condition_mode in args.condition_modes:
         sample_output_dir = condition_output_dir(args.output_dir, condition_mode, args.condition_modes)
+        sampling_specs = (
+            [(None, count) for count in args.sampling_counts]
+            if args.sampling_counts is not None
+            else [(rate, None) for rate in args.sampling_rates]
+        )
         for gain_mode in args.gain_modes:
-            for sampling_rate in args.sampling_rates:
+            for sampling_rate, sampling_count in sampling_specs:
                 command = [
                     sys.executable,
                     str(sample_script),
@@ -91,7 +121,7 @@ def main() -> None:
                     "--split",
                     args.split,
                     "--sampling_rate",
-                    str(sampling_rate),
+                    str(sampling_rate if sampling_rate is not None else 0.0),
                     "--num_samples",
                     str(args.num_samples),
                     "--start_index",
@@ -121,6 +151,8 @@ def main() -> None:
                     "--device",
                     resolved_device,
                 ]
+                if sampling_count is not None:
+                    command.extend(["--sampling_count", str(sampling_count)])
                 if args.split_file is not None:
                     command.extend(["--split_file", str(args.split_file)])
                 if args.no_progress:
@@ -128,13 +160,14 @@ def main() -> None:
                 print("Running:", " ".join(command))
                 subprocess.run(command, check=True)
 
-                summary_path = sample_output_dir / gain_mode / ratio_tag(sampling_rate) / "summary.json"
+                summary_path = sample_output_dir / gain_mode / sampling_tag(sampling_rate, sampling_count) / "summary.json"
                 with open(summary_path, "r", encoding="utf-8") as f:
                     summary = json.load(f)
                 row = {
                     "condition_mode": condition_mode,
                     "gain_mode": gain_mode,
-                    "sampling_rate": sampling_rate,
+                    "sampling_rate": sampling_rate if sampling_rate is not None else "",
+                    "sampling_count": sampling_count if sampling_count is not None else "",
                     "n_frames": summary.get("n_frames", summary.get("n_frames", "")),
                 }
                 for key in METRIC_KEYS:
@@ -143,7 +176,7 @@ def main() -> None:
                 summary_rows.append(row)
 
     summary_csv = args.output_dir / "benchmark_summary.csv"
-    fields = ["condition_mode", "gain_mode", "sampling_rate", "n_frames"] + [
+    fields = ["condition_mode", "gain_mode", "sampling_rate", "sampling_count", "n_frames"] + [
         f"{key}_{suffix}" for key in METRIC_KEYS for suffix in ("mean", "std")
     ]
     with open(summary_csv, "w", newline="") as f:

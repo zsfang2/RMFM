@@ -34,6 +34,37 @@ def make_exact_ratio_mask(
     return mask.reshape(height, width)
 
 
+def make_exact_k_mask(
+    height: int,
+    width: int,
+    k: int,
+    seed: int,
+    valid_mask: np.ndarray | None = None,
+) -> np.ndarray:
+    if k < 0:
+        raise ValueError(f"k must be non-negative, got {k}")
+    if valid_mask is None:
+        candidates = np.arange(height * width)
+    else:
+        if valid_mask.shape != (height, width):
+            raise ValueError(
+                f"valid_mask shape {valid_mask.shape} does not match {(height, width)}"
+            )
+        candidates = np.flatnonzero(valid_mask.astype(bool).reshape(-1))
+
+    if k > len(candidates):
+        raise ValueError(f"Cannot sample k={k} points from only {len(candidates)} valid pixels")
+
+    mask = np.zeros(height * width, dtype=np.float32)
+    if k == 0:
+        return mask.reshape(height, width)
+
+    rng = np.random.default_rng(seed)
+    selected = rng.choice(candidates, size=k, replace=False)
+    mask[selected] = 1.0
+    return mask.reshape(height, width)
+
+
 def mask_to_tensor(mask: np.ndarray, device: torch.device) -> torch.Tensor:
     if mask.ndim != 2:
         raise ValueError(f"Expected 2D mask, got shape {mask.shape}")

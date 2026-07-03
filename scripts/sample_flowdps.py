@@ -22,8 +22,21 @@ from rmfm.data import (  # noqa: E402
 )
 from rmfm.flowdps import RadioMapUNetFlowDPS  # noqa: E402
 from rmfm.io import save_mask, save_tensor_image, tensor_to_float01  # noqa: E402
-from rmfm.masks import build_measurement, make_exact_ratio_mask, mask_to_tensor, stable_int_seed  # noqa: E402
-from rmfm.metrics import compute_metrics, summarize_metrics, write_metrics_csv, write_summary_json  # noqa: E402
+from rmfm.masks import (  # noqa: E402
+    build_measurement,
+    make_exact_k_mask,
+    make_exact_ratio_mask,
+    mask_to_tensor,
+    stable_int_seed,
+)
+from rmfm.metrics import (  # noqa: E402
+    MASKED_METRIC_KEYS,
+    compute_masked_metrics,
+    compute_metrics,
+    summarize_metric_keys,
+    write_metrics_csv,
+    write_summary_json,
+)
 from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_UNET_RESULT_ROOT  # noqa: E402
 
 
@@ -40,6 +53,16 @@ CONDITION_MODES = (
 
 def ratio_tag(value: float) -> str:
     return f"sr_{value:.4f}".replace(".", "p")
+
+
+def count_tag(value: int) -> str:
+    return f"k_{value:04d}"
+
+
+def sampling_tag(sampling_rate: float, sampling_count: int | None) -> str:
+    if sampling_count is not None:
+        return count_tag(sampling_count)
+    return ratio_tag(sampling_rate)
 
 
 def apply_condition_mode(condition: torch.Tensor, mode: str) -> torch.Tensor:
@@ -79,6 +102,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--condition_mode", choices=CONDITION_MODES, default="full")
 
     parser.add_argument("--sampling_rate", type=float, default=0.01)
+    parser.add_argument(
+        "--sampling_count",
+        type=int,
+        default=None,
+        help="If set, sample exactly this many valid non-building pixels instead of using sampling_rate.",
+    )
     parser.add_argument("--num_samples", type=int, default=50)
     parser.add_argument("--start_index", type=int, default=0)
     parser.add_argument(
@@ -142,7 +171,7 @@ def main() -> None:
         dtype=args.dtype,
     )
 
-    out_root = args.output_dir / args.gain_mode / ratio_tag(args.sampling_rate)
+    out_root = args.output_dir / args.gain_mode / sampling_tag(args.sampling_rate, args.sampling_count)
     input_dir = out_root / "input"
     recon_dir = out_root / "recon"
     label_dir = out_root / "label"
@@ -152,13 +181,29 @@ def main() -> None:
     for idx in range(len(dataset)):
         item = dataset[idx]
         image = item["image"].unsqueeze(0).to(device)
-        condition = item["condition"].unsqueeze(0).to(device)
-        condition = apply_condition_mode(condition, args.condition_mode)
-        mask_seed = stable_int_seed(args.seed, item["gain_path"], f"{args.sampling_rate:.8f}")
+        full_condition = item["condition"].unsqueeze(0).to(device)
+        condition = apply_condition_mode(full_condition, args.condition_mode)
+        sampling_key = (
+            f"k={args.sampling_count}"
+            if args.sampling_count is not None
+            else f"sr={args.sampling_rate:.8f}"
+        )
+        mask_seed = stable_int_seed(args.seed, item["gain_path"], sampling_key)
         noise_seed = stable_int_seed(args.seed, item["gain_path"], "measurement_noise")
         sample_seed = stable_int_seed(args.seed, item["gain_path"], "flow_sample")
 
-        mask_np = make_exact_ratio_mask(args.image_size, args.image_size, args.sampling_rate, mask_seed)
+        building_np = full_condition[0, 0].detach().float().cpu().numpy()
+        valid_np = building_np <= 0.5
+        if args.sampling_count is not None:
+            mask_np = make_exact_k_mask(
+                args.image_size,
+                args.image_size,
+                args.sampling_count,
+                mask_seed,
+                valid_mask=valid_np,
+            )
+        else:
+            mask_np = make_exact_ratio_mask(args.image_size, args.image_size, args.sampling_rate, mask_seed)
         mask = mask_to_tensor(mask_np, device=device)
         measurement = build_measurement(image, mask, args.measurement_noise_std, noise_seed)
 
@@ -185,14 +230,24 @@ def main() -> None:
         save_tensor_image(image, label_dir / f"{frame}.png")
         save_mask(mask_np, mask_dir / f"{frame}.npy")
 
-        metrics = compute_metrics(tensor_to_float01(recon), tensor_to_float01(image))
+        recon_np = tensor_to_float01(recon)
+        image_np = tensor_to_float01(image)
+        measurement_np = tensor_to_float01(measurement)
+        observed_np = (mask_np > 0.5) & valid_np
+        unobserved_np = (mask_np <= 0.5) & valid_np
+        metrics = compute_metrics(recon_np, image_np)
+        metrics.update(compute_masked_metrics(recon_np, image_np, observed_np, "observed"))
+        metrics.update(compute_masked_metrics(recon_np, image_np, unobserved_np, "unobserved"))
+        metrics.update(compute_masked_metrics(recon_np, measurement_np, observed_np, "measurement"))
         rows.append(
             {
                 "frame": frame,
                 "mode": item["mode"],
                 "city_id": item["city_id"],
                 "source_id": item["source_id"],
-                "sampling_rate": args.sampling_rate,
+                "sampling_rate": args.sampling_rate if args.sampling_count is None else "",
+                "sampling_count": args.sampling_count if args.sampling_count is not None else "",
+                "valid_pixel_count": int(valid_np.sum()),
                 "condition_mode": args.condition_mode,
                 "time_sec": elapsed,
                 **metrics,
@@ -203,11 +258,13 @@ def main() -> None:
             f"PSNR={metrics['psnr']:.3f} SSIM={metrics['ssim']:.4f} time={elapsed:.2f}s"
         )
 
-    summary = summarize_metrics(rows)
+    metric_keys = ["psnr", "ssim", "mse", "nmse", "rmse", "mae"] + [f"{prefix}_{key}" for prefix in ("observed", "unobserved", "measurement") for key in MASKED_METRIC_KEYS]
+    summary = summarize_metric_keys(rows, metric_keys)
     summary.update(
         {
             "gain_mode": args.gain_mode,
-            "sampling_rate": args.sampling_rate,
+            "sampling_rate": args.sampling_rate if args.sampling_count is None else None,
+            "sampling_count": args.sampling_count,
             "checkpoint": str(args.checkpoint),
             "num_steps": args.num_steps,
             "step_size": args.step_size,
