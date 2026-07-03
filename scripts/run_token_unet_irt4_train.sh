@@ -80,7 +80,6 @@ echo "batch_size=$BATCH_SIZE"
 echo "max_steps=$MAX_STEPS"
 echo
 
-export CUDA_VISIBLE_DEVICES="$GPU_ID"
 export PYTHONUNBUFFERED=1
 
 "$PYTHON_EXE" scripts/train_token_unet_flow.py \
@@ -112,7 +111,7 @@ export PYTHONUNBUFFERED=1
   --grad_accum_steps "$GRAD_ACCUM_STEPS" \
   --clip_grad_norm "$CLIP_GRAD_NORM" \
   --mixed_precision "$MIXED_PRECISION" \
-  --device cuda:0 \
+  -gpu "$GPU_ID" \
   --val_ratio "$VAL_RATIO" \
   --test_ratio "$TEST_RATIO" \
   --seed "$SEED" \

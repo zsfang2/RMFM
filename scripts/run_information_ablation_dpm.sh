@@ -15,7 +15,7 @@ RESULT_ROOT="${RESULT_ROOT:-/home/DataDisk/zsfang/rmfm/results/unet}"
 CHECKPOINT="${CHECKPOINT:-$CHECKPOINT_ROOT/radiomapseer_unet_flow_dpm/checkpoint_step_0015000.pt}"
 OUTPUT_DIR="${OUTPUT_DIR:-$RESULT_ROOT/information_ablation_dpm}"
 
-# Physical GPU id shown by nvidia-smi. Change this single number as needed.
+# GPU id in the current visible CUDA device list. Change this single number as needed.
 GPU_ID=1
 
 GAIN_MODES=(DPM)
@@ -63,8 +63,6 @@ STEP_SIZE=50.0
 DC_ITERS=3
 DTYPE="fp16"
 
-CUDA_VISIBLE_DEVICES_VALUE="$GPU_ID"
-DEVICE="cuda:0"
 
 # Set to 1 if you want to reuse completed summary.json files.
 SKIP_EXISTING=0
@@ -101,7 +99,7 @@ CMD=(
   --step_size "$STEP_SIZE"
   --dc_iters "$DC_ITERS"
   --dtype "$DTYPE"
-  --device "$DEVICE"
+  -gpu "$GPU_ID"
   --no_progress
 )
 
@@ -121,8 +119,6 @@ fi
   echo "checkpoint=$CHECKPOINT"
   echo "output_dir=$OUTPUT_DIR"
   echo "gpu_id=$GPU_ID"
-  echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES_VALUE"
-  echo "device=$DEVICE"
   echo "gain_modes=${GAIN_MODES[*]}"
   echo "split=$SPLIT"
   echo "sampling_rates=${SAMPLING_RATES[*]}"
@@ -139,7 +135,6 @@ fi
 
 {
   printf 'cd %q\n' "$PROJECT_ROOT"
-  printf 'CUDA_VISIBLE_DEVICES=%q ' "$CUDA_VISIBLE_DEVICES_VALUE"
   printf '%q ' "${CMD[@]}"
   printf '\n'
 } > "$RUN_COMMAND"
@@ -157,12 +152,10 @@ if [[ "$RUN_IN_BACKGROUND" == "1" ]]; then
   nohup bash -c '
     set -euo pipefail
     project_root="$1"
-    cuda_visible_devices="$2"
-    shift 2
+    shift 1
     cd "$project_root"
-    export CUDA_VISIBLE_DEVICES="$cuda_visible_devices"
     exec "$@"
-  ' _ "$PROJECT_ROOT" "$CUDA_VISIBLE_DEVICES_VALUE" "${CMD[@]}" >> "$RUN_LOG" 2>&1 &
+  ' _ "$PROJECT_ROOT" "${CMD[@]}" >> "$RUN_LOG" 2>&1 &
 
   pid=$!
   echo "$pid" > "$RUN_PID"
@@ -175,6 +168,5 @@ if [[ "$RUN_IN_BACKGROUND" == "1" ]]; then
 else
   rm -f "$RUN_PID"
   cd "$PROJECT_ROOT"
-  export CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES_VALUE"
   exec "${CMD[@]}" 2>&1 | tee "$RUN_LOG"
 fi

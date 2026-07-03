@@ -13,6 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from rmfm.device import add_gpu_argument, device_string  # noqa: E402
 from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_UNET_RESULT_ROOT  # noqa: E402
 
 
@@ -132,6 +133,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dc_iters", type=int, default=3)
     parser.add_argument("--dtype", choices=["fp32", "fp16", "bf16"], default="fp16")
     parser.add_argument("--device", type=str, default="cuda")
+    add_gpu_argument(parser)
     parser.add_argument("--no_progress", action="store_true")
     parser.add_argument("--skip_existing", action="store_true")
     return parser.parse_args()
@@ -227,7 +229,7 @@ def run_sample(
         "--dtype",
         args.dtype,
         "--device",
-        args.device,
+        resolved_device,
     ]
     if args.split_file is not None:
         command.extend(["--split_file", str(args.split_file)])
@@ -320,6 +322,7 @@ def write_config(args: argparse.Namespace, experiments: list[str], sampling_rate
 
 def main() -> None:
     args = parse_args()
+    resolved_device = device_string(args.device, args.gpu)
     experiments = parse_experiments(args.experiments)
     sampling_rates = resolve_sampling_rates(args)
     sample_script = Path(__file__).with_name("sample_flowdps.py")

@@ -25,9 +25,8 @@ RESULT_ROOT="${RESULT_ROOT:-/home/DataDisk/zsfang/rmfm/results/token_unet}"
 CHECKPOINT="${CHECKPOINT:-$CHECKPOINT_ROOT/radiomapseer_token_unet_flow_dpm/best.pt}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$RESULT_ROOT/token_unet_v1_supplement_per_city1_fp32}"
 
-# Physical GPU id shown by nvidia-smi. Change this single number as needed.
+# GPU id in the current visible CUDA device list. Change this single number as needed.
 GPU_ID=1
-DEVICE="cuda:0"
 
 GAIN_MODES=(DPM)
 SPLIT="test"
@@ -99,8 +98,6 @@ write_launch_config() {
     echo "checkpoint=$CHECKPOINT"
     echo "output_root=$OUTPUT_ROOT"
     echo "gpu_id=$GPU_ID"
-    echo "cuda_visible_devices=$GPU_ID"
-    echo "device=$DEVICE"
     echo "gain_modes=${GAIN_MODES[*]}"
     echo "split=$SPLIT"
     echo "split_file=$SPLIT_FILE"
@@ -122,7 +119,7 @@ write_launch_config() {
 
   {
     printf 'cd %q\n' "$PROJECT_ROOT"
-    printf 'CUDA_VISIBLE_DEVICES=%q bash %q --worker\n' "$GPU_ID" "$PROJECT_ROOT/scripts/run_token_unet_v1_supplement_eval.sh"
+    printf 'bash %q --worker\n' "$PROJECT_ROOT/scripts/run_token_unet_v1_supplement_eval.sh"
   } > "$RUN_COMMAND"
 }
 
@@ -159,7 +156,7 @@ run_benchmark() {
     --dc_iters "$dc_iters"
     --k_max "$K_MAX"
     --dtype "$DTYPE"
-    --device "$DEVICE"
+    -gpu "$GPU_ID"
     --no_progress
   )
 
@@ -181,10 +178,7 @@ run_benchmark() {
 
 main_run() {
   cd "$PROJECT_ROOT"
-  export CUDA_VISIBLE_DEVICES="$GPU_ID"
-
   echo "Started TokenUNet-v1 supplementary evaluation at $(date -Is)"
-  echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
   echo "Matched noDC output: $MATCHED_OUTPUT_DIR"
   echo "DC sweep output: $DC_SWEEP_OUTPUT_ROOT"
 

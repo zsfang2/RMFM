@@ -11,14 +11,12 @@ from pathlib import Path
 
 import torch
 
+from rmfm.device import add_gpu_argument, device_string
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CHECKPOINT_DIR = (
-    PROJECT_ROOT
-    / "outputs"
-    / "rmfm"
-    / "checkpoints"
-    / "token_unet"
+    Path("/home/DataDisk/zsfang/rmfm/checkpoints/token_unet")
     / "radiomapseer_source_residual_token_unet_flow_dpm"
 )
 DEFAULT_OUTPUT_DIR = (
@@ -76,17 +74,12 @@ def parse_args() -> argparse.Namespace:
         help="fp32 is the safe default for the source-residual model.",
     )
     parser.add_argument(
-        "--gpu",
-        type=int,
-        default=0,
-        help="Physical GPU index, for example --gpu 4. Use -1 for CPU.",
-    )
-    parser.add_argument(
         "--device",
         type=str,
         default=None,
         help=argparse.SUPPRESS,
     )
+    add_gpu_argument(parser)
     parser.add_argument("--show_progress", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -99,18 +92,10 @@ def require_path(path: Path, kind: str) -> None:
 
 
 def resolve_device(args: argparse.Namespace) -> str:
-    if args.device is not None:
-        return args.device
-    if args.gpu == -1:
-        return "cpu"
-    if args.gpu < -1:
-        raise ValueError("--gpu must be -1 for CPU or a non-negative GPU index")
-    if not torch.cuda.is_available():
-        raise RuntimeError("CUDA is unavailable. Use --gpu -1 to run on CPU.")
-    device_count = torch.cuda.device_count()
-    if args.gpu >= device_count:
-        raise ValueError(f"Invalid --gpu {args.gpu}; available GPU indices are 0..{device_count - 1}")
-    return f"cuda:{args.gpu}"
+    base_device = args.device
+    if base_device is None:
+        base_device = "cuda" if torch.cuda.is_available() else "cpu"
+    return device_string(base_device, args.gpu)
 
 
 def summary_path(args: argparse.Namespace, sampling_rate: float) -> Path:

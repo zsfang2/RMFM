@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from rmfm.device import add_gpu_argument, resolve_torch_device  # noqa: E402
 from rmfm.data import (  # noqa: E402
     RadioMapSeerFlowDataset,
     filter_samples_by_city,
@@ -178,10 +179,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mixed_precision", choices=["no", "fp16", "bf16"], default="fp16")
     parser.add_argument(
         "--device",
-        type=int,
-        default=0,
-        help="CUDA GPU id. For example, --device 1 uses cuda:1. Falls back to CPU if CUDA is unavailable.",
+        type=str,
+        default="cuda",
+        help="Training device, e.g. cuda, cuda:0, cuda:1, cpu, or a bare GPU id like 1.",
     )
+    add_gpu_argument(parser)
     parser.add_argument("--channels_last", action="store_true")
     parser.add_argument("--allow_tf32", action="store_true")
     parser.add_argument("--compile", action="store_true")
@@ -357,14 +359,7 @@ def main() -> None:
     args = parse_args()
     sparse_rates = parse_rates(args.sparse_rates)
     torch.manual_seed(args.seed)
-    if not torch.cuda.is_available():
-        device = torch.device("cpu")
-    else:
-        if args.device < 0 or args.device >= torch.cuda.device_count():
-            raise ValueError(
-                f"Invalid GPU id {args.device}; available ids are 0..{torch.cuda.device_count() - 1}"
-            )
-        device = torch.device(f"cuda:{args.device}")
+    device = resolve_torch_device(args.device, args.gpu)
     amp_enabled = args.mixed_precision != "no" and device.type == "cuda"
     amp_dtype = torch.float16 if args.mixed_precision == "fp16" else torch.bfloat16
     scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled and args.mixed_precision == "fp16")

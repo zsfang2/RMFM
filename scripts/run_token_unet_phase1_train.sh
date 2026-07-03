@@ -13,9 +13,8 @@ DATASET_ROOT="${DATASET_ROOT:-$RMFM_DATA_ROOT/RadioMapSeer}"
 CHECKPOINT_ROOT="${CHECKPOINT_ROOT:-/home/DataDisk/zsfang/rmfm/checkpoints/token_unet}"
 OUTPUT_DIR="${OUTPUT_DIR:-$CHECKPOINT_ROOT/radiomapseer_token_unet_flow_dpm}"
 
-# Physical GPU id shown by nvidia-smi. Change this single number as needed.
+# GPU id in the current visible CUDA device list. Change this single number as needed.
 GPU_ID="${GPU_ID:-1}"
-DEVICE="cuda:0"
 
 GAIN_MODES_TEXT="${GAIN_MODES_TEXT:-DPM}"
 read -r -a GAIN_MODES <<< "$GAIN_MODES_TEXT"
@@ -102,7 +101,7 @@ CMD=(
   --grad_accum_steps "$GRAD_ACCUM_STEPS"
   --clip_grad_norm "$CLIP_GRAD_NORM"
   --mixed_precision "$MIXED_PRECISION"
-  --device "$DEVICE"
+  -gpu "$GPU_ID"
   --val_ratio "$VAL_RATIO"
   --test_ratio "$TEST_RATIO"
   --seed "$SEED"
@@ -133,8 +132,6 @@ fi
   echo "dataset_root=$DATASET_ROOT"
   echo "output_dir=$OUTPUT_DIR"
   echo "gpu_id=$GPU_ID"
-  echo "cuda_visible_devices=$GPU_ID"
-  echo "device=$DEVICE"
   echo "gain_modes=${GAIN_MODES[*]}"
   echo "image_size=$IMAGE_SIZE"
   echo "base_channels=$BASE_CHANNELS"
@@ -153,7 +150,6 @@ fi
 
 {
   printf 'cd %q\n' "$PROJECT_ROOT"
-  printf 'CUDA_VISIBLE_DEVICES=%q ' "$GPU_ID"
   printf '%q ' "${CMD[@]}"
   printf '\n'
 } > "$RUN_COMMAND"
@@ -171,12 +167,10 @@ if [[ "$RUN_IN_BACKGROUND" == "1" ]]; then
   nohup bash -c '
     set -euo pipefail
     project_root="$1"
-    gpu_id="$2"
-    shift 2
+    shift 1
     cd "$project_root"
-    export CUDA_VISIBLE_DEVICES="$gpu_id"
     exec "$@"
-  ' _ "$PROJECT_ROOT" "$GPU_ID" "${CMD[@]}" >> "$RUN_LOG" 2>&1 &
+  ' _ "$PROJECT_ROOT" "${CMD[@]}" >> "$RUN_LOG" 2>&1 &
 
   pid=$!
   echo "$pid" > "$RUN_PID"
@@ -189,6 +183,5 @@ if [[ "$RUN_IN_BACKGROUND" == "1" ]]; then
 else
   rm -f "$RUN_PID"
   cd "$PROJECT_ROOT"
-  export CUDA_VISIBLE_DEVICES="$GPU_ID"
   exec "${CMD[@]}" 2>&1 | tee "$RUN_LOG"
 fi

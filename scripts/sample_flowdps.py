@@ -13,6 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from rmfm.device import add_gpu_argument, resolve_torch_device  # noqa: E402
 from rmfm.data import (  # noqa: E402
     RadioMapSeerFlowDataset,
     filter_samples_by_city,
@@ -94,6 +95,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dc_iters", type=int, default=3)
     parser.add_argument("--dtype", choices=["fp32", "fp16", "bf16"], default="fp16")
     parser.add_argument("--device", type=str, default="cuda")
+    add_gpu_argument(parser)
     parser.add_argument("--no_progress", action="store_true")
     return parser.parse_args()
 
@@ -117,10 +119,7 @@ def filter_by_split(samples: list, args: argparse.Namespace) -> list:
 
 def main() -> None:
     args = parse_args()
-    if args.device == "cuda" and not torch.cuda.is_available():
-        device = torch.device("cpu")
-    else:
-        device = torch.device(args.device)
+    device = resolve_torch_device(args.device, args.gpu)
 
     samples = list_radiomapseer_samples(args.dataset_root, [args.gain_mode])
     samples = filter_by_split(samples, args)
