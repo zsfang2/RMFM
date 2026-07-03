@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_RESULT_ROOT  # noqa: E402
+from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_TOKEN_UNET_RESULT_ROOT  # noqa: E402
 
 
 BASE_METRIC_KEYS = ["psnr", "ssim", "mse", "nmse", "rmse", "mae"]
@@ -109,7 +109,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark RMFM-TokenUNet-v1 phase-1 validation settings.")
     parser.add_argument("--dataset_root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--output_dir", type=Path, default=DEFAULT_RESULT_ROOT / "token_unet_phase1")
+    parser.add_argument("--output_dir", type=Path, default=DEFAULT_TOKEN_UNET_RESULT_ROOT / "token_unet_phase1")
     parser.add_argument("--gain_modes", nargs="+", default=["DPM"])
     parser.add_argument("--split", choices=["all", "train", "val", "test"], default="test")
     parser.add_argument("--split_file", type=Path, default=None)

@@ -13,8 +13,8 @@ fi
 
 PYTHON_EXE="python"
 
-DATASET_ROOT="data/RadiomapSeer"
-OUTPUT_DIR="outputs/rmfm/checkpoints/radiomapseer_token_unet_flow_irt4"
+DATASET_ROOT="/home/DataDisk/zsfang/dataset/RadioMapSeer"
+OUTPUT_DIR="/home/DataDisk/zsfang/rmfm/checkpoints/token_unet/radiomapseer_token_unet_flow_irt4"
 
 GPU_ID=0
 

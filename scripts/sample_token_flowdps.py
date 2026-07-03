@@ -34,7 +34,10 @@ from rmfm.metrics import (  # noqa: E402
     write_summary_json,
 )
 from rmfm.modeling_token_unet_flow import load_model_from_checkpoint  # noqa: E402
-from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_RESULT_ROOT  # noqa: E402
+from rmfm.modeling_source_residual_token_unet_flow import (  # noqa: E402
+    load_model_from_checkpoint as load_source_residual_model_from_checkpoint,
+)
+from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_TOKEN_UNET_RESULT_ROOT  # noqa: E402
 from rmfm.token_utils import sparse_tokens_from_mask  # noqa: E402
 
 
@@ -85,7 +88,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run RMFM-TokenUNet-v1 sparse radio-map sampling.")
     parser.add_argument("--dataset_root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--output_dir", type=Path, default=DEFAULT_RESULT_ROOT / "token_unet_flowdps")
+    parser.add_argument("--output_dir", type=Path, default=DEFAULT_TOKEN_UNET_RESULT_ROOT / "token_unet_flowdps")
     parser.add_argument("--gain_mode", type=str, default="DPM")
     parser.add_argument("--split", choices=["all", "train", "val", "test"], default="test")
     parser.add_argument("--split_file", type=Path, default=None)
@@ -140,10 +143,22 @@ class RadioMapTokenUNetSampler:
     ) -> None:
         self.device = device
         self.model_dtype = parse_dtype(dtype, device)
-        self.model, self.model_config, self.checkpoint = load_model_from_checkpoint(
+        checkpoint_metadata = torch.load(
             checkpoint,
-            device=device,
-            dtype=self.model_dtype,
+            map_location="cpu",
+            weights_only=False,
+        )
+        self.model_type = str(checkpoint_metadata.get("model_type", "token_unet_flow"))
+        if self.model_type == "source_residual_token_unet_flow":
+            loader = load_source_residual_model_from_checkpoint
+            self.output_name = "source_residual_token_unet"
+        elif self.model_type == "token_unet_flow":
+            loader = load_model_from_checkpoint
+            self.output_name = "token_unet"
+        else:
+            raise ValueError(f"Unsupported checkpoint model_type: {self.model_type}")
+        self.model, self.model_config, self.checkpoint = loader(
+            checkpoint, device=device, dtype=self.model_dtype
         )
         self.num_train_timesteps = num_train_timesteps
         self.data_channels = int(self.model_config["data_channels"])
@@ -249,6 +264,12 @@ class RadioMapTokenUNetSampler:
                 x0_blend = x0_pred
             x = ((1.0 - t_next) * x0_blend + t_next * x1_pred).clamp(-1.0, 1.0)
 
+        if not torch.isfinite(x).all():
+            non_finite = int((~torch.isfinite(x)).sum().item())
+            raise FloatingPointError(
+                f"Sampler produced {non_finite} non-finite values. "
+                "Retry with --dtype fp32; source-residual checkpoints may be unstable in fp16."
+            )
         return x.clamp(-1.0, 1.0)
 
 
@@ -283,7 +304,7 @@ def main() -> None:
 
     out_root = (
         args.output_dir
-        / f"token_unet_{args.sampler_mode}"
+        / f"{sampler.output_name}_{args.sampler_mode}"
         / args.condition_mode
         / args.gain_mode
         / ratio_tag(args.sampling_rate)
@@ -374,6 +395,7 @@ def main() -> None:
             "gain_mode": args.gain_mode,
             "sampling_rate": args.sampling_rate,
             "checkpoint": str(args.checkpoint),
+            "model_type": sampler.model_type,
             "num_steps": args.num_steps,
             "step_size": args.step_size,
             "dc_iters": args.dc_iters,

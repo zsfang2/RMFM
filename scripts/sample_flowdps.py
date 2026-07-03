@@ -23,7 +23,7 @@ from rmfm.flowdps import RadioMapUNetFlowDPS  # noqa: E402
 from rmfm.io import save_mask, save_tensor_image, tensor_to_float01  # noqa: E402
 from rmfm.masks import build_measurement, make_exact_ratio_mask, mask_to_tensor, stable_int_seed  # noqa: E402
 from rmfm.metrics import compute_metrics, summarize_metrics, write_metrics_csv, write_summary_json  # noqa: E402
-from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_RESULT_ROOT  # noqa: E402
+from rmfm.paths import DEFAULT_DATASET_ROOT, DEFAULT_UNET_RESULT_ROOT  # noqa: E402
 
 
 CONDITION_MODES = (
@@ -67,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run sparse RadioMap recovery with a U-Net flow prior.")
     parser.add_argument("--dataset_root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--output_dir", type=Path, default=DEFAULT_RESULT_ROOT / "sample_flowdps")
+    parser.add_argument("--output_dir", type=Path, default=DEFAULT_UNET_RESULT_ROOT / "sample_flowdps")
     parser.add_argument("--gain_mode", type=str, default="DPM")
     parser.add_argument("--split", choices=["all", "train", "val", "test"], default="all")
     parser.add_argument("--split_file", type=Path, default=None)

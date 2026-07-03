@@ -1,5 +1,5 @@
-dataset_root: data/RadiomapSeer
-output_dir: outputs/rmfm/checkpoints/radiomapseer_unet_flow_dpm
+dataset_root: /home/DataDisk/zsfang/dataset/RadioMapSeer
+output_dir: /home/DataDisk/zsfang/rmfm/checkpoints/unet/radiomapseer_unet_flow_dpm_v2
 gain_modes:
   - DPM
 image_size: 256

@@ -8,9 +8,9 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PYTHON_EXE="${PYTHON_EXE:-python}"
 
-RMFM_DATA_ROOT="${RMFM_DATA_ROOT:-$PROJECT_ROOT/data}"
-DATASET_ROOT="${DATASET_ROOT:-$RMFM_DATA_ROOT/RadiomapSeer}"
-CHECKPOINT_ROOT="${CHECKPOINT_ROOT:-$PROJECT_ROOT/outputs/rmfm/checkpoints}"
+RMFM_DATA_ROOT="${RMFM_DATA_ROOT:-/home/DataDisk/zsfang/dataset}"
+DATASET_ROOT="${DATASET_ROOT:-$RMFM_DATA_ROOT/RadioMapSeer}"
+CHECKPOINT_ROOT="${CHECKPOINT_ROOT:-/home/DataDisk/zsfang/rmfm/checkpoints/token_unet}"
 OUTPUT_DIR="${OUTPUT_DIR:-$CHECKPOINT_ROOT/radiomapseer_token_unet_flow_dpm}"
 
 # Physical GPU id shown by nvidia-smi. Change this single number as needed.
