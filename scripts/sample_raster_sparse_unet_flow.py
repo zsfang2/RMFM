@@ -81,6 +81,25 @@ def filter_by_split(samples: list, args: argparse.Namespace) -> list:
     return filter_samples_by_city(samples, splits[args.split])
 
 
+def synchronize_if_cuda(device: torch.device) -> None:
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+
+
+def cuda_memory_stats(device: torch.device) -> dict[str, float | str]:
+    if device.type != "cuda":
+        return {}
+    index = device.index if device.index is not None else torch.cuda.current_device()
+    return {
+        "cuda_device_index": index,
+        "cuda_device_name": torch.cuda.get_device_name(index),
+        "cuda_memory_allocated_mb": torch.cuda.memory_allocated(index) / (1024**2),
+        "cuda_memory_reserved_mb": torch.cuda.memory_reserved(index) / (1024**2),
+        "cuda_max_memory_allocated_mb": torch.cuda.max_memory_allocated(index) / (1024**2),
+        "cuda_max_memory_reserved_mb": torch.cuda.max_memory_reserved(index) / (1024**2),
+    }
+
+
 class RasterSparseUNetSampler:
     def __init__(self, checkpoint: Path, device: torch.device, dtype: str) -> None:
         self.device = device
@@ -146,6 +165,8 @@ def main() -> None:
         third_channel=args.third_channel,
     )
     sampler = RasterSparseUNetSampler(args.checkpoint, device=device, dtype=args.dtype)
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
 
     out_root = args.output_dir / args.gain_mode / count_tag(args.sampling_count)
     input_dir = out_root / "input"
@@ -173,6 +194,7 @@ def main() -> None:
 
         generator = torch.Generator(device=device)
         generator.manual_seed(sample_seed)
+        synchronize_if_cuda(device)
         t0 = time.perf_counter()
         raw = sampler.sample(
             condition=condition,
@@ -181,6 +203,7 @@ def main() -> None:
             solver=args.solver,
             generator=generator,
         )
+        synchronize_if_cuda(device)
         elapsed = time.perf_counter() - t0
         projected = raw * (1.0 - mask) + measurement * mask
 
@@ -217,6 +240,7 @@ def main() -> None:
                 "sampling_count": args.sampling_count,
                 "valid_pixel_count": int(valid_np.sum()),
                 "time_sec": elapsed,
+                **cuda_memory_stats(device),
                 **metrics,
             }
         )
@@ -240,7 +264,11 @@ def main() -> None:
         )
         for key in MASKED_METRIC_KEYS
     ]
+    metric_keys += ["time_sec"]
     summary = summarize_metric_keys(rows, metric_keys)
+    if rows:
+        summary["total_time_sec"] = float(sum(float(row["time_sec"]) for row in rows))
+    summary.update(cuda_memory_stats(device))
     summary.update(
         {
             "model_type": "raster_sparse_unet_flow_c1",
